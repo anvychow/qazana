@@ -222,7 +222,7 @@ final class Manager {
     			)
     		);
 
-            $class_name = $this->reflection->getNamespaceName() .'\Widgets\\' . ucfirst($extension) . '\Skins\Skin_' . ucfirst($skin);
+            $class_name = $this->reflection->getNamespaceName() . '\Widgets\\' . ucfirst( $extension ) . '\Skins\Skin_' . ucfirst( $skin );
 
             if ( class_exists( $class_name ) ) {
                 continue;
@@ -265,10 +265,10 @@ final class Manager {
                 $this->register_widgets( $extension_data['name'], $extension_data['widgets'] );
 
         		foreach ( $this->get_widgets( $extension_data['name'] ) as $widget ) {
- 
+
                     $class_name = $this->reflection->getNamespaceName() . '\Widgets\\' . $widget;
- 
-                    if( ! class_exists( $class_name ) ) {
+
+                    if ( ! class_exists( $class_name ) ) {
                         return new \WP_Error( __CLASS__ . '::' . $class_name, 'Widget class not found in `' . $extension_data['name'] );
                     }
 
@@ -341,7 +341,7 @@ final class Manager {
             $field_id = 'qazana_extension_' . $extension_data['name'];
 
             $settings->add_section( Panel::TAB_INTEGRATIONS, $section, [
-                'callback' => function() use ($extension_data) { },
+                'callback' => function() use ( $extension_data ) { },
                 'fields' => [
                     $field_id => [
                         'label' => $extension_data['title'],

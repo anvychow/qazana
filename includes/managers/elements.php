@@ -235,7 +235,7 @@ class Elements_Manager {
 
         if ( is_array( $files ) ) {
             foreach ( $files as $file ) {
-                qazana()->widget_loader->locate_widget( $file, true );
+                qazana()->widgets_manager->loader->locate_widget( $file, true );
             }
         }
     }

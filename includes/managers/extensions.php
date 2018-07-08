@@ -4,6 +4,7 @@ namespace Qazana\Extensions;
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 use Qazana\Admin\Settings\Panel;
+use Qazana\Loader;
 
 final class Manager {
 
@@ -19,7 +20,7 @@ final class Manager {
      *
      * @var array
      */
-	public $path = array();
+	private $path = array();
 
 	/**
 	 * @var \ReflectionClass
@@ -36,29 +37,38 @@ final class Manager {
     /**
      * __construct
      */
-	public function __construct( $loader ) {
-
-        $this->loader = $loader;
-        $this->path = $this->loader->merge_files_stack_locations();
-
+	public function __construct() {
+        $this->loader = new Loader();
         $this->reflection = new \ReflectionClass( $this );
 
-        $this->register_all_extensions();
-        $this->load_extensions();
+        do_action( 'qazana/extensions/before/loaded', $this );
 
-        add_action( 'qazana/loaded',                     [ $this, 'load_extensions' ] );
+        add_action( 'qazana/after/init_classes', [ $this, 'register_all_extensions' ] );
+        add_action( 'qazana/after/init_classes', [ $this, 'load_extensions' ] );
         add_action( 'qazana/widgets/widgets_registered', [ $this, 'load_widgets' ] );
-
+         
         if ( is_admin() ) {
-			// add_action( 'qazana/admin/after_create_settings/' . qazana()->slug, [ $this, 'register_admin_fields' ] );
+			//add_action( 'qazana/admin/after_create_settings/' . qazana()->slug, [ $this, 'register_admin_fields' ] );
         }
+
+        do_action( 'qazana/extensions/before/loaded', $this );
     }
 
     public function register_all_extensions() {
-        if ( $this->path ) {
-            foreach ( $this->path as $folder ) {
-                $this->register_extensions( $folder );
-            }
+
+        do_action( 'qazana/extensions/loader/before', $this->loader );
+
+        $this->loader->add_stack( qazana()->theme_paths_child, qazana()->theme_extensions_locations );
+        $this->loader->add_stack( qazana()->theme_paths, qazana()->theme_extensions_locations );
+
+        do_action( 'qazana/extensions/loader', $this->loader );  // plugins can intercept the stack here. Themes will always take precedence
+
+        $this->loader->add_stack( array( 'path' => qazana()->plugin_dir, 'uri' => qazana()->plugin_url ), qazana()->plugin_extensions_locations );
+
+        do_action( 'qazana/extensions/loader/after', $this->loader );
+
+        foreach ( $this->loader->merge_files_stack_locations() as $folder ) {
+            $this->register_extensions( $folder );
         }
     }
 
@@ -82,7 +92,7 @@ final class Manager {
          *
          * @param object $this Qazana
          */
-        do_action( 'qazana/extensions/before', $this );
+        do_action( 'qazana/extensions/register/before', $this );
 
         foreach ( $folders as $folder ) {
             $this->register_extension( $folder, $path );
@@ -93,7 +103,7 @@ final class Manager {
          *
          * @param object $this Qazana
          */
-        do_action( 'qazana/extensions', $this );
+        do_action( 'qazana/extensions/register/after', $this );
 
     }
 
@@ -122,7 +132,7 @@ final class Manager {
          */
         $class_file = "$path$folder/extension_{$folder}.php";
 
-        if ( $file = $this->loader->locate_widget( "$folder/extension_{$folder}.php", true ) && file_exists( $class_file ) && empty( $this->extensions[ $folder ] ) ) {
+        if ( $file =  $this->loader->locate_widget( "$folder/extension_{$folder}.php", true ) && file_exists( $class_file ) && empty( $this->extensions[ $folder ] ) ) {
 
             if ( ! class_exists( $extension_class ) ) {
                 return new \WP_Error( __CLASS__ . '::' . $extension_class, 'Extension class not found in `' . $class_file );
@@ -140,11 +150,13 @@ final class Manager {
      */
     public function load_extensions() {
 
-        if ( empty( $this->extensions ) ) {
+        $extensions = apply_filters( 'qazana/extensions/load_extensions', $this->extensions );
+
+        if ( empty( $extensions ) ) {
             return;
         }
 
-        foreach ( $this->extensions as $extension_id => $extension_instance ) {
+        foreach ( $extensions as $extension_id => $extension_instance ) {
 
             if ( ! empty( $extension_instance->get_config()['dependencies'] ) ) {
                 $dependencies = $extension_instance->get_config()['dependencies'];
@@ -163,8 +175,8 @@ final class Manager {
      */
     public function load_extension( $extension_id ) {
 
-        if ( ! is_object( $this->get_extensions( $extension_id ) ) ) {
-            foreach ( $this->path as $folder ) {
+        if ( ! is_object( $this->get_extension( $extension_id ) ) ) {
+            foreach ( $this->loader->merge_files_stack_locations() as $folder ) {
                 $this->register_extension( $extension_id, $folder );
             }
         }
@@ -200,7 +212,7 @@ final class Manager {
     			)
     		);
 
-            if ( $file = $this->loader->locate_widget( "{$extension}/widgets/{$filename}.php" ) ) {
+            if ( $file =  $this->loader->locate_widget( "{$extension}/widgets/{$filename}.php" ) ) {
                 require_once $file;
             }
         }
@@ -265,11 +277,13 @@ final class Manager {
 
 	public function load_widgets() {
 
-        if ( empty( $this->extensions ) ) {
+        $extensions = apply_filters( 'qazana/extensions/load_extensions', $this->extensions );
+
+        if ( empty( $extensions ) ) {
             return;
         }
-
-        foreach ( $this->extensions as $extension_id => $extension_object ) {
+    
+        foreach ( $extensions as $extension_id => $extension_object ) {
 
 			$extension_data = $extension_object->get_config();
 
@@ -361,17 +375,26 @@ final class Manager {
 		return 'true' === $options[ $extension_id ];
 	}
 
-	public function get_extensions( $extension_id = null ) {
-		return isset( $this->extensions[ $extension_id ] ) ? $this->extensions[ $extension_id ] : $this->extensions;
+    public function get_extension( $extension_id ) {
+		return isset( $this->extensions[ $extension_id ] ) ? $this->extensions[ $extension_id ] : false;
 	}
 
 	public function get_extension_data( $extension_id ) {
 		return isset( $this->extensions[ $extension_id ] ) ? $this->extensions[ $extension_id ]->get_config() : false;
-	}
+    }
+    
+    public function get_extensions( $extension_id = null ) {
+        if ( $extension_id ) {
+            _deprecated_function( __METHOD__, '1.3.1' );
+        }
+		return $this->extensions;
+    }
 
     public function register_admin_fields( Panel $settings ) {
 
-        foreach ( $this->extensions as $extension_id => $extension_data ) {
+        $extensions = apply_filters( 'qazana/extensions/load_extensions', $this->extensions );
+
+        foreach ( $extensions as $extension_id => $extension_data ) {
 
             $extension_data = $this->get_extension_data( $extension_id );
 

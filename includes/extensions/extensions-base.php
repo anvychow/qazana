@@ -127,26 +127,20 @@ abstract class Base {
     /**
      * Extension url helper function
      *
-     * @param  [type] $file [description]
-     * @return [type]       [description]
+     * @param  string $file  name of file
+     * @return string       full url
      */
 	public function extension_url( $file ) {
-
-        $config = $this->get_config();
-
-        return qazana()->extensions_loader->locate_widget_url( $config['name'] . '/' . $file );
+        return qazana()->extensions_manager->loader->locate_widget_url( $this->get_config()['name'] . '/' . $file );
 	}
 
 	/**
      * Extension dir helper function
      *
-     * @param  [type] $file [description]
-     * @return [type]       [description]
+     * @param  string $file  name of file
+     * @return string       full path
      */
 	public function extension_dir( $file ) {
-
-        $config = $this->get_config();
-
-        return qazana()->extensions_loader->locate_widget( $config['name'] . '/' . $file );
+        return qazana()->extensions_manager->loader->locate_widget( $this->get_config()['name'] . '/' . $file );
 	}
 }

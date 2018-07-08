@@ -60,6 +60,6 @@ class Skins_Manager {
 	 * @access public
 	*/
 	public function __construct() {
-		qazana()->widget_loader->locate_widget( 'base/skin-base.php', true );
+		qazana()->widgets_manager->loader->locate_widget( 'base/skin-base.php', true );
 	}
 }

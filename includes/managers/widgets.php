@@ -8,6 +8,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 class Widgets_Manager {
 
     /**
+     * Widgets loader
+     *
+     * @var array
+     */
+	public $loader;
+
+    /**
 	 * @var Widget_Base[]
 	 */
 	private $_widget_types = null;
@@ -17,6 +24,18 @@ class Widgets_Manager {
 	 * @access public
 	 */
     public function __construct() {
+
+        $this->loader = new Loader();
+
+        $this->loader->add_stack( array( 'path' => qazana()->plugin_dir, 'uri' => qazana()->plugin_url ), qazana()->plugin_widget_locations );
+
+        do_action( 'qazana/widgets/before/loader', $this->loader );
+
+        $this->loader->add_stack( qazana()->theme_paths_child, qazana()->theme_widget_locations );
+        $this->loader->add_stack( qazana()->theme_paths, qazana()->theme_widget_locations );
+
+        do_action( 'qazana/widgets/after/loader', $this->loader );
+
         add_action( 'wp_ajax_qazana_render_widget', [ $this, 'ajax_render_widget' ] );
         add_action( 'wp_ajax_qazana_editor_get_wp_widget_form', [ $this, 'ajax_get_wp_widget_form' ] );
         $this->require_files(); // Load these immediately for use by extensions
@@ -77,7 +96,7 @@ class Widgets_Manager {
 
         foreach ( $build_widgets_filename as $widget_filename ) {
 
-            if ( ! qazana()->widget_loader->locate_widget( $widget_filename .'.php', false ) ) {
+            if ( ! $this->loader->locate_widget( $widget_filename .'.php', false ) ) {
                 continue;
             }
 
@@ -87,7 +106,7 @@ class Widgets_Manager {
             $class_name = apply_filters( "qazana/widgets/{$widget_filename}_class_name", $class_name, $widget_filename );
 
             if ( ! class_exists( $class_name ) ) {
-                qazana()->widget_loader->locate_widget( $widget_filename .'.php', true );
+                $this->loader->locate_widget( $widget_filename .'.php', true );
             }
 
             $this->register_widget_type( new $class_name );
@@ -106,7 +125,7 @@ class Widgets_Manager {
 
         global $wp_widget_factory;
 
-        qazana()->widget_loader->locate_widget( 'wordpress.php', true );
+        $this->loader->locate_widget( 'wordpress.php', true );
 
 		$blacklist = [
 			'WP_Widget_Text', //unnecessary since Qazana has a text widget
@@ -116,13 +135,15 @@ class Widgets_Manager {
          * Allow override of allowed widgets
          *
          * @since 1.0.0
-         *
+         * 
          * @param array $allowed_widgets.
          */
         // Allow themes/plugins to filter out their wordpress widgets
 		$black_list = apply_filters( 'qazana/widgets/black_list', $blacklist );
 
-        foreach ( $wp_widget_factory->widgets as $widget_class => $widget_obj ) {
+        $widgets = apply_filters( 'qazana/widgets_manager/widgets', $wp_widget_factory->widgets );
+
+        foreach ( $widgets as $widget_class => $widget_obj ) {
 
     		if ( in_array( $widget_class, $black_list ) ) {
     			continue;
@@ -157,7 +178,7 @@ class Widgets_Manager {
 
         if ( is_array( $files ) ) {
             foreach ( $files as $file ) {
-                qazana()->widget_loader->locate_widget( $file, true );
+                $this->loader->locate_widget( $file, true );
             }
         }
 

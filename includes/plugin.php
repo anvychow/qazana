@@ -88,7 +88,6 @@ class Plugin {
     public $elements_manager;
 
     public $widget_loader;
-    public $widgets_manager;
 
     public $skins_manager;
     public $posts_css_manager;
@@ -105,7 +104,7 @@ class Plugin {
 
     public $templates_manager;
 
-    public $extensions_loader;
+    public $widgets_manager;
 
     public $extensions_manager;
 
@@ -246,6 +245,35 @@ class Plugin {
         // Languages
         $this->lang_dir = apply_filters( 'qazana_lang_dir',     trailingslashit( $this->plugin_dir . 'languages' ) );
 
+       // check qazana first
+        $this->plugin_widget_locations = [
+            'includes/widgets',
+        ];
+
+        $this->plugin_extensions_locations = array(
+		    'includes/extensions',
+        );
+
+        // Then check parent themes second
+        $this->theme_paths = array( 
+			'path' 	=> get_stylesheet_directory(), 
+			'uri' 	=> get_stylesheet_directory_uri()
+        );
+
+        // Then check child theme
+        $this->theme_paths_child = array( 
+			'path' 	=> get_template_directory(), 
+			'uri' 	=> get_template_directory_uri()
+        );
+
+        $this->theme_widget_locations = [
+            'qazana/widgets',
+        ];
+        
+        $this->theme_extensions_locations = array(
+		    'qazana/extensions',
+        );
+
         /* Identifiers *******************************************************/
         $this->admin = new \StdClass(); // Used by admin
 
@@ -253,19 +281,6 @@ class Plugin {
         $this->domain = 'qazana'; // Unique identifier for retrieving translated strings
         $this->extend = new \StdClass(); // Plugins add data here
         $this->errors = new \WP_Error(); // Feedback
-
-        $this->__set( 'widget_locations', [
-            'includes/widgets',
-            'qazana/overrides',
-        ]);
-
-        $this->__set( 'extensions_locations', [
-            'includes/extensions',
-            'qazana/extensions',
-        ]);
-
-        $this->widget_locations = apply_filters( 'qazana/widgets/location', $this->__get( 'widget_locations' ) );
-        $this->extensions_locations = apply_filters( 'qazana/extensions/location', $this->__get( 'extensions_locations' ) );
     }
 
     /**
@@ -421,33 +436,27 @@ class Plugin {
     public function init_classes() {
         do_action( 'qazana/before/init_classes' );
 
-        $paths = [
-			'path' => $this->plugin_dir,
-			'uri'  => $this->plugin_url,
-        ];
-
         Core\Settings\Manager::run();
 
-        $this->db                 = new DB();
         $this->icons_manager      = new Icons_Manager();
+        $this->db                 = new DB();
         $this->controls_manager   = new Controls_Manager();
         $this->schemes_manager    = new Schemes_Manager();
         $this->elements_manager   = new Elements_Manager();
-        $this->widget_loader      = new Loader( $paths, $this->widget_locations );
-        $this->widgets_manager    = new Widgets_Manager();
-        $this->skins_manager      = new Skins_Manager();
+        $this->templates_manager  = new Template_Manager();
         $this->posts_css_manager  = new Posts_CSS_Manager();
         $this->customcss          = new Custom_Css();
-        $this->editor             = new Editor();
-        $this->preview            = new Preview();
-        $this->frontend           = new Frontend();
         $this->heartbeat          = new Heartbeat();
-        $this->templates_manager  = new Template_Manager();
         $this->cron               = new Cron();
-        $this->extensions_loader  = new Loader( $paths, $this->extensions_locations );
-        $this->extensions_manager = new Extensions\Manager( $this->extensions_loader );
+        $this->editor             = new Editor();
+        $this->widgets_manager    = new Widgets_Manager();
+        $this->skins_manager      = new Skins_Manager();
+        $this->extensions_manager = new Extensions\Manager();
         $this->mobile_detect      = new MobileDetect();
         $this->mobile_detect->setDetectionType( 'extended' );
+
+        $this->preview            = new Preview();
+        $this->frontend           = new Frontend();
 
         do_action( 'qazana/after/init_classes' );
     }
@@ -575,7 +584,7 @@ class Plugin {
 		$file = plugin_dir_path( QAZANA__FILE__ ) . 'qazana.php';
 		if ( ! $this->version && file_exists( $file ) && function_exists( 'get_plugin_data' ) ) {
 			$plugin	 = get_plugin_data( $file );
-			$this->version	 = $plugin['Version'];
+			$this->version = $plugin['Version'];
 		}
 	}
 }

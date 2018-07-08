@@ -55,12 +55,15 @@ final class Manager {
     }
 
     public function register_all_extensions() {
-        $this->loader->add_stack( array( 'path' => qazana()->plugin_dir, 'uri' => qazana()->plugin_url ), qazana()->plugin_extensions_locations );
 
         do_action( 'qazana/extensions/loader/before', $this->loader );
 
         $this->loader->add_stack( qazana()->theme_paths_child, qazana()->theme_extensions_locations );
         $this->loader->add_stack( qazana()->theme_paths, qazana()->theme_extensions_locations );
+
+        do_action( 'qazana/extensions/loader', $this->loader );  // plugins can intercept the stack here. Themes will always take precedence
+
+        $this->loader->add_stack( array( 'path' => qazana()->plugin_dir, 'uri' => qazana()->plugin_url ), qazana()->plugin_extensions_locations );
 
         do_action( 'qazana/extensions/loader/after', $this->loader );
 

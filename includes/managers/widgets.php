@@ -24,21 +24,22 @@ class Widgets_Manager {
 	 * @access public
 	 */
     public function __construct() {
+        add_action( 'qazana/widgets/loader/after', [ $this, 'require_files' ] ); // Load these immediately for use by extensions
+        add_action( 'wp_ajax_qazana_render_widget', [ $this, 'ajax_render_widget' ] );
+        add_action( 'wp_ajax_qazana_editor_get_wp_widget_form', [ $this, 'ajax_get_wp_widget_form' ] );
 
         $this->loader = new Loader();
-
-        $this->loader->add_stack( array( 'path' => qazana()->plugin_dir, 'uri' => qazana()->plugin_url ), qazana()->plugin_widget_locations );
-
-        do_action( 'qazana/widgets/before/loader', $this->loader );
+      
+        do_action( 'qazana/widgets/loader/before', $this->loader );
 
         $this->loader->add_stack( qazana()->theme_paths_child, qazana()->theme_widget_locations );
         $this->loader->add_stack( qazana()->theme_paths, qazana()->theme_widget_locations );
 
-        do_action( 'qazana/widgets/after/loader', $this->loader );
+        do_action( 'qazana/widgets/loader', $this->loader ); // plugins can intercept the stack here. Themes will always take precedence
 
-        add_action( 'wp_ajax_qazana_render_widget', [ $this, 'ajax_render_widget' ] );
-        add_action( 'wp_ajax_qazana_editor_get_wp_widget_form', [ $this, 'ajax_get_wp_widget_form' ] );
-        $this->require_files(); // Load these immediately for use by extensions
+        $this->loader->add_stack( array( 'path' => qazana()->plugin_dir, 'uri' => qazana()->plugin_url ), qazana()->plugin_widget_locations );
+
+        do_action( 'qazana/widgets/loader/after', $this->loader );
     }
 
 	/**
@@ -176,12 +177,9 @@ class Widgets_Manager {
 
         $files = apply_filters( 'qazana/widgets/require_files', $default_files );
 
-        if ( is_array( $files ) ) {
-            foreach ( $files as $file ) {
-                $this->loader->locate_widget( $file, true );
-            }
+        foreach ( (array) $files as $file ) {
+            $this->loader->locate_widget( $file, true );
         }
-
     }
 
 	/**
